@@ -1,0 +1,218 @@
+---
+title: "Detección de Outlier y Normalidad  Multivariante"
+author: "Edwin Jacobo"
+format: pdf
+editor: visual
+---
+
+# **Detección de Outliers Multivariantes**
+
+Los outliers multivariantes son observaciones que se consideran extrañas no por el valor que toman en una determinada variable, sino en el conjunto de aquellas. Son más difíciles de identificar que los outliers unidimensionales, dado que no pueden considerarse "valores extremos", como sucede cuando se tiene una única variable bajo estudio. Su presencia tiene efectos todavía más perjudiciales que en el caso unidimensional, porque distorsionan no sólo los valores de la medida de posición (media) o de dispersión (varianza), sino muy especialmente, las correlaciones entre las variables. Algunos autores definen un valor atípico multivariante, como un caso que es un valor extremo para una combinación de variables. Por ejemplo, un niño de 8 años de edad cuya estatura sea de 155 cms y pese 45 kg es muy inusual y sería un atípico multivariante. Consideramos un conjunto de datos bivariado que contiene el peso corporal y cerebral de 28 especies animales. El conjunto de datos se llama Animals y se encuentra en el paquete MASS
+
+```{r}
+#install.packages("MASS")
+library(MASS)
+data("Animals")
+head(Animals)
+```
+
+Se aplica una transformación logarítmica a ambas variables.
+
+```{r}
+datos = data.frame(log_body=log(Animals$body),
+log_brain=log(Animals$brain))
+head(datos)   
+```
+
+Los diagramas de caja indican que no hay valores atípicos univariados, pero los valores atípicos en el entorno multivariante pueden estar presentes.
+
+```{r}
+boxplot(datos, col = rainbow(ncol(datos)))
+```
+
+Creamos un diagrama de dispersión de los logaritmos de peso corporal y cerebral, que muestra que en realidad hay tres valores atípicos multivariados. Estos puntos no son atípicos en ninguna de las variables individualmente. Solo podemos detectar tales valores atípicos estimando correctamente la estructura de covarianza.
+
+```{r}
+library(ggplot2)
+attach(datos)
+ggplot(datos, aes(x=log_body, y=log_brain))+ geom_point()
+```
+
+**Distancia de Mahalanobis**
+
+Un puntaje z mide cuántas desviaciones estándar se encuentran entre la observación y su media. La distancia de Mahalanobis es una generalización multidimensional de esta idea y tiene en cuenta la matriz de covarianza. Mide la distancia de la observación desde su centro dividida por el ancho del elipsoide en la dirección de la observación. Por lo tanto, nos dice qué tan lejos está la observación del centro de la nube, en relación con el tamaño de la nube. Si la matriz de covarianza es la matriz de identidad, la distancia de Mahalanobis se reduce a la distancia euclidiana.
+
+**Mahalanobis**
+
+Mahalanobis Las distancias clásicas de Mahalanobis se obtienen tomando la media de la muestra como estimación de la ubicación y la matriz de covarianza de la muestra como estimación de la dispersión. La raíz cuadrada del cuantil del 97,5% de la distribución chi-cuadrado con p grados de libertad se utiliza normalmente como valor de corte. Luego podemos crear un elipsoide de tolerancia que contenga las observaciones con una distancia de Mahalanobis menor que el valor de corte. Esperamos que alrededor del 97,5% de las observaciones pertenezcan a este elipsoide, por lo que podemos marcar la observación como un valor atípico si no pertenece al elipsoide de tolerancia clásico.
+
+**Elipsoide de tolerancia basado en la distancia de Mahalanobis**
+
+Obteniendo la media, la covarianza y el radio, construimos un elipsoide de tolerancia basado en la distancia de Mahalanobis.
+
+```{r}
+animals.clcenter=colMeans(datos)
+animals.clcov=cov(datos)
+
+radio=sqrt(qchisq(0.975, df= ncol(datos)))
+#install.packages("car")
+library(car)
+## Loading required package: carData
+ellipse.cl=data.frame(ellipse(center = animals.clcenter,
+shape =animals.clcov,radius = radio,
+segments = 100,draw = FALSE))
+colnames(ellipse.cl)=colnames(datos)
+ggplot(data=datos,mapping=aes(x=log_body,y=log_brain))+geom_point()+
+geom_polygon(data=ellipse.cl,color= "dodgerblue",fill= "dodgerblue",
+alpha=0.2)+ geom_point(aes(x=animals.clcenter[1],
+y=animals.clcenter[2]),
+color="red", size=6)
+```
+
+Vemos que el elipsoide se infla en la dirección de los tres valores atípicos y, por lo tanto, los valores atípicos ya no se detectan. Por lo tanto, nuevamente es importante incorporar estimadores robustos.
+
+**Estimaciones sólidas de ubicación y dispersión.**
+
+El determinante de covarianza mínimo o MCD es un estimador robusto de ubicación multivariante y dispersión que busca las h observaciones cuya matriz de covarianza tiene el determinante más bajo posible. h se elige típicamente igual a 0,75n o 0,5n. La estimación robusta de la dispersión es entonces solo la matriz de covarianza de la muestra de estas h observaciones. Por lo general, se aplica un paso de reponderación para aumentar la eficiencia sin disminuir la robustez. El cálculo de MCD no es trivial y requiere una investigación exhaustiva de todos los subconjuntos h de n. Afortunadamente, se construyen y están
+
+disponibles algoritmos mucho más rápidos en R. Usando el paquete robustbase podemos aplicar MCD a los datos y obtener estimaciones robustas de ubicación con centro y dispersión con cov. Si se introducen estas estimaciones sólidas en la definición de la distancia de Mahalanobis, se obtienen distancias sólidas.
+
+```{r}
+#install.packages("robustbase")
+library(robustbase)
+animals.mcd=covMcd(datos)
+animals.mcd
+```
+
+```{r}
+animals.mcd$center #Estimación robusta de ubicación
+```
+
+```{r}
+animals.mcd$cov #Estimación robusta de dispersión.
+```
+
+Construimos el elipsoide de tolerancia robusto.
+
+```{r}
+ellipse.mcd=data.frame(ellipse(center=animals.mcd$center,
+shape=animals.mcd$cov,
+radius=radio,
+segments=100,draw=FALSE))
+colnames(ellipse.mcd)=colnames(datos)
+fig2 = ggplot(data=datos,mapping=aes(x=log_body, y=log_brain),
+label=row.names(datos))+geom_point()+
+geom_polygon(data=ellipse.cl, color= "dodgerblue",fill= "dodgerblue",
+alpha=0.2)+geom_point(aes(x=animals.clcenter[1],
+y= animals.clcenter[2]),
+color="blue", size=6)+
+geom_polygon(data=ellipse.mcd,color= "red", fill= "red",alpha=0.3)+
+geom_point(aes(x=animals.mcd$center[1], y=
+animals.mcd$center[2]),color="red", size=6)
+
+#install.packages("ggrepel") #paquete que permite repeler etiquetas de
+#texto que se solapan entre sí.
+library(ggrepel)
+fig2 + geom_label_repel(aes(label= row.names(datos)),size= 3,
+box.padding=0.5,point.padding = 0.3,
+segment.color = 'grey50')+theme_classic()
+```
+
+El elipsoide robusto identifica claramente los 3 valores atípicos (observaciones 6, 16 y 26) e incluso vemos otras dos especies, 14 y 17, cerca del límite. Gráfico de distancia-distancia En dimensiones superiores (con más de 3 variables) resulta inviable visualizar el elipsoide de tolerancia. La gráfica de distancia-distancia es entonces una alternativa popular.
+
+```{r}
+plot(animals.mcd, which="dd")
+```
+
+En el eje X se representan las distancias clásicas de Mahalanobis, mientras que en el eje Y se muestran las distancias robustas. Las líneas rectas representan los valores de corte, nuevamente derivados de la distribución de chi cuadrado. Inmediatamente vemos qué valores atípicos se detectan utilizando distancias de mahalanobis clásicas y robustas. En este ejemplo, los animales seleccionados pueden verse como defraudadores entre las otras especies, ya que marcamos los únicos 3 dinosaurios en el conjunto de datos como valores atípicos claros y el humano y el mono rhesus como puntos límite. De hecho, tienen un cerebro sospechoso frente al peso corporal en comparación con la mayoría de los animales.
+
+```{r}
+row.names.data.frame(Animals)
+```
+
+**Normalidad Multivariante**
+
+Los análisis de normalidad, también llamados contrastes de normalidad, tienen como objetivo analizar cuánto difiere la distribución de los datos observados respecto a lo esperado si procediesen de una distribución normal con la misma media y desviación típica.
+
+Para su análisis pueden diferenciarse tres estrategias:
+
+1.  Mediante representaciones gráficas
+
+2\. Mediante métodos analíticos y
+
+3\. Test de hipótesis.
+
+El test de hipotesis bajo consideración es:Hipótesis estadística Ho: los datos siguen una distribución normal Ha: los datos no siguen una distribución normal Nivel de significancia α = 0.05 o 0.01 Prueba estadística: shapiro-wilks, kolmogorov, otro Decisión: si p \< α, la prueba estadística es significativa, no existiría normalidad en los datos.
+
+**Test de normalidad multivariante**
+
+Para simplificar, tomemos un subconjunto del paquete de datos iris que contiene 50 muestras de flores setosa y verifiquemos la suposición de normalidad multivariada utilizando las pruebas de Mardia, Royston, Henze-Zirkler y Energy test que se encuentran dentro del paquete MVN.
+
+```{r}
+# tomando el subconjunto de datos setosa
+setosa <- iris[1:50, 1:4] # primeros 50 datos, primeras 4 variables
+head(setosa)
+```
+
+**Prueba de Mardia con MVN.**
+
+El argumento mvnTest = "mardia" en la función mvn se usa para calcular los coeficientes de asimetría multivariado y curtosis de Mardia, así como su significación estadística correspondiente. Esta función también puede calcular la versión corregida del coeficiente de asimetría para el tamaño de muestra pequeño (n \< 20).
+
+```{r}
+# test de normalidad
+# test de Mardia en MVN
+#install.packages("MVN")
+library(MVN)
+result <- mvn(data = setosa, mvnTest = "mardia")
+result$multivariateNormality
+```
+
+Si ambas pruebas indican una normalidad multivariante, los datos siguen una distribución normal multivariada con un nivel de significación de 0.05, como es el caso del ejemplo: Skewness: p(0.177) \> α(0.05) y Kurtosis: p(0.1953) \> α(0.05)
+
+**Test Henze-Zirkler con MVN**
+
+Se puede usar mvnTest = "hz" en la función mvn para realizar la prueba de Henze- Zirkler.
+
+```{r}
+# Henze-Zirkler's MVN test
+result <- mvn(data = setosa, mvnTest = "hz")
+result$multivariateNormality
+```
+
+La última columna indica que los datos NO siguen una normalidad multivariada al nivel 5% de significación. p(0.04995) \< α(0.05)
+
+**Test Royston con MVN**
+
+Para llevar a cabo la prueba de Royston, establezca el argumento mvnTest = "royston" en la función mvn de la siguiente manera:
+
+```{r}
+# Royston's MVN test
+result <- mvn(data = setosa, mvnTest = "royston")
+result$multivariateNormality
+```
+
+La última columna indica que los datos NO siguen una normalidad multivariada al 5% de significancia. p(0.00000218) \< α(0.05). NOTA: No aplique la prueba de Royston, si el conjunto de datos incluye más de 5000 casos o menos de 3 casos, ya que depende de la prueba de Shapiro-Wilk.
+
+**Test de Doornik-Hansen con MVN**
+
+Para llevar a cabo la prueba de Doornik-Hansen, establezca el argumento mvnTest = "dh" en la función mvn de la siguiente manera:
+
+```{r}
+# Doornik-Hansen's MVN test
+result <- mvn(data = setosa, mvnTest = "dh")
+result$multivariateNormality
+```
+
+La última columna que el conjunto de datos NO sigue una normalidad multivariada en el nivel de significación 0.05. p(0.00000) \< α(0.05)
+
+**Energy test**
+
+Para llevar a cabo la prueba de Energy, establezca el argumento mvnTest = "energía" en la función mvn de la siguiente manera:
+
+```{r}
+# Energy test
+result <- mvn(data = setosa, mvnTest = "energy")
+result$multivariateNormality
+```
+
+La última columna indica que el conjunto de datos NO sigue una normalidad multivariada en el nivel de significación 0.05. p(0.031) \< α(0.05).
