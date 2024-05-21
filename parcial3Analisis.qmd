@@ -1,0 +1,110 @@
+---
+title: "parcial3"
+format: pdf
+editor: visual
+jupyter: python3
+---
+
+```{=tex}
+\tableofcontents
+\newpage
+\section{\textbf {Intervalos Basados en Percentiles}}
+```
+
+```{python}
+!pip install yfinance
+```
+
+```{python}
+import yfinance as yf
+import pandas as pd
+
+```
+
+```{python}
+apple = yf.Ticker("AAPL")
+
+```
+
+```{python}
+apple_info=apple.info
+apple_info
+```
+
+```{python}
+apple_info['country']
+```
+
+```{python}
+historico_apple = apple.history(period="max")
+print(historico_apple)
+```
+
+```{python}
+historico_apple.head()
+```
+
+```{python}
+print(historico_apple["Close"].head(10))
+```
+
+```{python}
+historico_apple.reset_index(inplace=True)
+```
+
+```{python}
+# Graficar los datos
+historico_apple.plot(x="Date", y="Close")
+```
+
+## Uso de yfinance para extraer datos históricos de dividendos
+
+Los dividendos son la distribución de las ganancias de una empresa a los accionistas. En este caso, se definen como una cantidad de dinero devuelta por acción que posee un inversor. Usando la variable 'dividens' podemos obtener un DataFrame de los datos. El período de los datos viene dado por el período definido en la función "history".
+
+```{python}
+apple.dividends
+```
+
+```{python}
+apple.dividends.plot()
+```
+
+## practica
+
+Con todo lo visto anteriormente, vamos a extraer los datos de una empresa española conocida, los mostramos y graficamos la evolución de los valores desde que empezó a cotizar en bolsa.
+
+```{python}
+inditex = yf.Ticker("ITX.MC")
+```
+
+mostramos la ciudad de origen de la empresa
+
+```{python}
+inditex_info=inditex.info
+inditex_info['country']
+```
+
+Mostramos el sector al que pertenece dicha empresa
+
+```{python}
+inditex_info['sector']
+```
+
+Extraemos el histórico desde que empezó a cotizar en bolsa y lo graficamos
+
+```{python}
+historico_inditex=inditex.history(period="max")
+print(historico_inditex)
+```
+
+```{python}
+historico_inditex.reset_index(inplace=True)
+```
+
+```{python}
+historico_inditex.plot(x="Date", y="Close")
+```
+
+como podemos observar el grafico tiene una tendencia positiva a lo largo del periode del tiempo
+
+tiene aleatoriedad y estacionariedad en diferentes puntos
