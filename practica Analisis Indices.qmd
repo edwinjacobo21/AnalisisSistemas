@@ -1,0 +1,354 @@
+---
+documentclass: article
+format: pdf
+editor: visual
+jupyter: python3
+lang: es-ES
+---
+
+```{=tex}
+\begin{titlepage}
+\centering
+{\bfseries\LARGE UIVERSIDAD DE EL SALVADOR FACULTAD MULTIDISCIPLINARIA DE OCCIDENTE \par}
+\centering
+{\includegraphics[width=0.4\textwidth]{images/logoues.jpg}\par}
+\vspace{1cm}
+\vspace{1cm}
+{\scshape\Large Departamento de Matem\'atica \par}
+\vspace{1cm}
+{\scshape\large T\'itulo del proyecto \par}
+\vspace{1cm}
+{\itshape\Large\Huge Analisis de series de temporales \par}
+\vfill
+{\Large Autor: \par}
+{\Large Edwin Oswaldo Jacobo CArdona \par}
+\vfill
+{\Large 04 de Junio 2024 \par}
+\end{titlepage}
+```
+\tableofcontents
+
+\newpage
+
+\addcontentsline{toc}{section}{\listfigurename}
+
+\listoffigures
+
+\addcontentsline{toc}{section}{\listtablename}
+
+\newpage
+
+\listoftables
+
+\newpage
+
+```{python}
+#!pip install yfinance
+```
+
+```{python}
+import yfinance as yf
+import pandas as pd
+
+```
+
+```{python}
+apple = yf.Ticker("AAPL")
+
+```
+
+```{python}
+apple_info=apple.info
+##apple_info
+```
+
+```{python}
+apple_info['country']
+```
+
+```{python}
+historico_apple = apple.history(period="max")
+print(historico_apple)
+```
+
+```{python}
+#|tbl-cap: "tabla de los datos historicos de apple"
+historico_apple.head()
+```
+
+```{python}
+print(historico_apple["Close"].head(10))
+```
+
+```{python}
+historico_apple.reset_index(inplace=True)
+```
+
+```{python}
+#| fig-cap: "Graficar los datos"
+import matplotlib.pyplot as plt
+
+historico_apple.plot(x="Date", y="Close") 
+plt.show()
+```
+
+## Uso de y finance para extraer datos históricos de dividendos
+
+Los dividendos son la distribución de las ganancias de una empresa a los accionistas. En este caso, se definen como una cantidad de dinero devuelta por acción que posee un inversor. Usando la variable 'dividens' podemos obtener un DataFrame de los datos. El período de los datos viene dado por el período definido en la función "history".
+
+```{python}
+apple.dividends
+```
+
+```{python}
+#| fig-cap: "Graficar de tendencia de los datos"
+apple.dividends.plot()
+plt.show()
+```
+
+## Practica
+
+Con todo lo visto anteriormente, vamos a extraer los datos de una empresa española conocida, los mostramos y graficamos la evolución de los valores desde que empezó a cotizar en bolsa.
+
+```{python}
+inditex = yf.Ticker("ITX.MC")
+```
+
+mostramos la ciudad de origen de la empresa
+
+```{python}
+inditex_info=inditex.info
+inditex_info['country']
+```
+
+Mostramos el sector al que pertenece dicha empresa
+
+```{python}
+inditex_info['sector']
+```
+
+Extraemos el histórico desde que empezó a cotizar en bolsa y lo graficamos
+
+```{python}
+historico_inditex=inditex.history(period="max")
+print(historico_inditex)
+```
+
+```{python}
+historico_inditex.reset_index(inplace=True)
+```
+
+```{python}
+#| fig-cap: "tendencia de los datos visto de otra perspectiva"
+historico_inditex.plot(x="Date", y="Close")
+plt.show()
+```
+
+como podemos observar el grafico tiene una tendencia positiva a lo largo del periode del tiempo
+
+tiene aleatoriedad y estacionariedad en diferentes puntos.
+
+# **Objetivo**
+
+Crear y evaluar un modelo de arboles aleatotios (random forest) para predecir las ventas con datos simulados de una empresa dependiendo de las inversiones realizadas en publicidad.
+
+# **Descripción**
+
+-   Se utiliza programación Python
+
+-   Cargar librerías y datos
+
+-   Limpiar datos si es necesario
+
+-   Explorar datos
+
+-   Partir los datos en datos de entrenamiento y datos de validación 70% y 30%
+
+-   Crear modelo de regresión con los datos de entrenamiento
+
+-   Predicciones
+
+-   Evaluar predicciones con respecto a datos reales
+
+-   Determinar el estadístico *rmse* para evaluar con respecto a otros modelos
+
+-   Interpretar el caso
+
+    # **Fundamento teórico**
+
+    Un modelo Random Forest está formado por un conjunto (ensemble) de árboles de decisión individuales, cada uno entrenado con una muestra aleatoria extraída de los datos de entrenamiento originales mediante bootstrapping. Esto implica que cada árbol se entrena con unos datos ligeramente distintos.
+
+    En cada árbol individual, las observaciones se van distribuyendo por bifurcaciones (nodos) generando la estructura del árbol hasta alcanzar un nodo terminal. La predicción de una nueva observación se obtiene agregando las predicciones de todos los árboles individuales que forman el modelo.
+
+    Para entender cómo funcionan los modelos Random Forest es necesario conocer primero los conceptos de ensemble y bagging.
+
+    Métodos de ensemble
+
+    Todos los modelos de aprendizaje estadístico y machine learning sufren el problema de equilibrio entre bias y varianza.
+
+    El término bias (sesgo) hace referencia a cuánto se alejan en promedio las predicciones de un modelo respecto a los valores reales. Refleja cómo de capaz es el modelo de aprender la relación real que existe entre los predictores y la variable respuesta. Por ejemplo, si la relación sigue un patrón no lineal, por muchos datos de los que se disponga, un modelo de regresión lineal no podrá modelar correctamente la relación, por lo que tendrá un bias alto.
+
+# **Desarrollo**
+
+Para trabajar con código Python, se deben cargan las librerías de *Python* previamente instaladas con la función *py_install()* de la librería *reticulate* de R.
+
+## **Cargar librerías**
+
+```{python}
+##!pip install packages pandas
+```
+
+```{python}
+# Tratamiento de datos
+import numpy as np
+import pandas as pd
+# Gráficos
+import matplotlib.pyplot as plt
+# Preprocesado y moYdelado
+from sklearn.model_selection import train_test_split
+# from sklearn.tree import DecisionTreeRegressor
+# from sklearn.tree import plot_tree
+# from sklearn.tree import export_graphviz
+# from sklearn.tree import export_text
+# from sklearn.model_selection import GridSearchCV
+from sklearn.ensemble import RandomForestRegressor
+from sklearn import metrics
+from sklearn.metrics import mean_squared_error, r2_score
+
+
+```
+
+## Cargar datos
+
+```{python}
+#|tbl-cap: "tabla de datos cargados"
+datos = pd.read_csv("https://raw.githubusercontent.com/rpizarrog/Analisis-Inteligente-de-datos/main/datos/Advertising_Web.csv")
+datos
+```
+
+## **Explorar datos**
+
+```{python}
+print("Observaciones y variables: ", datos.shape)
+```
+
+```{python}
+print("Columnas y tipo de dato")
+```
+
+```{python}
+datos.dtypes
+```
+
+```{python}
+datos.info()
+```
+
+### Limpiar Datos
+
+```{python}
+#|tbl-cap: "descripcion de las variables"
+datos = datos[['TV','Radio', 'Newspaper', 'Web', 'Sales']]
+datos.describe()
+```
+
+```{python}
+datos
+```
+
+## **Datos de entrenamiento**
+
+```{python}
+X_entrena, X_valida, Y_entrena, Y_valida = train_test_split(datos.drop(columns = "Sales"), datos['Sales'],train_size=.70,  random_state=1321)
+```
+
+```{python}
+print("Estructura de datos de entrenamiento... ", X_entrena.shape)
+```
+
+```{python}
+print(X_entrena)
+```
+
+```{python}
+print(X_entrena[['TV']], X_entrena[['Radio']], X_entrena[['Newspaper']], X_entrena[['Web']])
+```
+
+# **Modelo de Random Forest**
+
+Se crea el modelo con la función *RandomForestRegressor().fit()* con los datos de entrenamiento que contiene la variables independientes en relación a la variable dependiente ‘*Sales*’.
+
+El argumento *n_estimators* define el número de árboles en el bosque aleatorio. Puede usar cualquier valor numérico para el parámetro *n_estimator*.
+
+El valor argumento de *random_state* es la semilla para la aleatoriedad del modelo
+
+```{python}
+model_rf = RandomForestRegressor(n_estimators = 50, random_state = 1321)
+model_rf.fit(X_entrena, Y_entrena)
+
+```
+
+## **Construir predicciones**
+
+Se generan predicciones con los datos de validación
+
+```{python}
+predicciones = model_rf.predict(X_valida)
+
+```
+
+## **Construir matriz de comparación**
+
+Construir una conjunto de datos con los valores reales de los datos de validación y las predicciones generadas del modelo
+
+```{python}
+comparaciones = pd.DataFrame(Y_valida)
+# comparaciones = comparaciones.assign(Sales_Real = Y_valida)
+comparaciones = comparaciones.assign(Predicho = predicciones.flatten().tolist())
+print(comparaciones)
+```
+
+## **Evaluación del modelo con RMSE**
+
+RMSE es una forma útil de ver qué tan bien un modelo de regresión puede ajustarse a un conjunto de datos.
+
+Cuanto mayor sea el *rmse*, mayor será la diferencia entre los valores predichos y reales, lo que significa que peor se ajusta un modelo de regresión a los datos. Por el contrario, cuanto más pequeño sea el *rmse*, mejor podrá un modelo ajustar los datos.
+
+Se compara este valor de *rmse* con respecto al modelo de regresión múltiple
+
+```{python}
+rmse = mean_squared_error(
+        y_true  = Y_valida,
+        y_pred  = predicciones,
+        squared = False
+       )
+print(f"El error (rmse) de test es: {rmse}")
+
+```
+
+```{python}
+print('Mean Squared Error: MSE', metrics.mean_squared_error(Y_valida, predicciones))
+```
+
+```{python}
+print('Root Mean Squared Error RMSE:', np.sqrt(metrics.mean_squared_error(Y_valida, predicciones)))
+```
+
+# Analisis
+
+Para estos datos para estos valores de entrenamiento y validación, con un valor de 50 árboles en el modelo, el valor de RMSE es aproximadamente 0.7660, menor que el valor de árbol de regresión en *Python* del Caso 4.
+
+El RMSE obtenido se puede comparar contra los estadísticos RMSE de los modelos regresión múltiple y árbol de regresión tanto de *Python* y de *R* , se puede interpretar cuál modelo es más eficiente en términos de este estadístico con estos datos.
+
+```{=tex}
+\newpage
+\addcontentsline{toc}{section}{Bibliografía}
+\renewcommand{\refname}{Bibliografía}
+\bibliography { bibliografia }
+\begin{thebibliography}{a}
+\bibitem{pradery} \textsc{Andrés Eduardo, R.},
+\textit{Series de Tiempo: Conceptos Básicos de Análisis de Series de Tiempo en el Dominio del Tiempo Andrés Eduardo Reyes Polanco}
+\bibitem{old} \textsc{Daniel Peña, S.},
+\textit{Análisis de series temporales}
+\end{thebibliography}
+```
